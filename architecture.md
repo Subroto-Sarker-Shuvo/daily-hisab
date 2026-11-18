@@ -402,6 +402,14 @@ Phase 6: Exporters & Security (PDF/Excel Export, Backup/Restore, PIN Lock)
     │
     ▼
 Phase 7: PWA, i18n & Final Polish (Service Worker, Bangla Fonts, Responsiveness)
+    │
+    ▼
+Phase 8: Commercial Grade Upgrades (Monetization & SaaS Ready)
+  ├── Step 1: Multi-Device Cloud Sync + Google / Email Auth (Supabase RLS)
+  ├── Step 2: Multiple Cashbooks / Khatas (Personal, Store, Family Separation)
+  ├── Step 3: Bangla SMS & WhatsApp Debt Reminders + Thermal POS Cash Memo
+  ├── Step 4: AI Voice Expense Entry (Spoken Bengali NLP Parser)
+  └── Step 5: Customer & Supplier Directory + Party Ledger & Statement Export
 ```
 
 This architecture provides a complete, scalable, and secure blueprint for implementing the **Daily Hisab** application.

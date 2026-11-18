@@ -17,6 +17,18 @@ import {
   Coins,
   MoreHorizontal,
   DollarSign,
+  Coffee,
+  Smartphone,
+  Fuel,
+  Package,
+  PiggyBank,
+  CreditCard,
+  Tag,
+  Sparkles,
+  Car,
+  Wrench,
+  Truck,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,6 +49,18 @@ const iconMap: Record<string, LucideIcon> = {
   Gift,
   Coins,
   MoreHorizontal,
+  Coffee,
+  Smartphone,
+  Fuel,
+  Package,
+  PiggyBank,
+  CreditCard,
+  Tag,
+  Sparkles,
+  Car,
+  Wrench,
+  Truck,
+  BookOpen,
 };
 
 interface CategoryIconProps {

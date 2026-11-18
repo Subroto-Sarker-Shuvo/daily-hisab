@@ -6,6 +6,7 @@ import { compressImage } from '../../lib/imageCompressor';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { X, Trash2, Camera, Calendar, FileText, Check, Plus, Mic } from 'lucide-react';
 import { toBengaliDigits } from '../../lib/formatters';
+import { AddCategoryModal } from '../common/AddCategoryModal';
 
 interface TransactionModalProps {
   categories: Category[];
@@ -28,6 +29,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [amount, setAmount] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState<string>('');
@@ -236,9 +238,19 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
 
           {/* Category Selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-              {t.transaction.category}
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {t.transaction.category}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsAddCategoryOpen(true)}
+                className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 flex items-center gap-1"
+              >
+                <Plus size={13} />
+                {lang === 'bn' ? 'নতুন ক্যাটাগরি' : '+ Add New'}
+              </button>
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
               {filteredCategories.map((cat) => {
                 const isSelected = categoryId === cat.id;
@@ -259,6 +271,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
                   </button>
                 );
               })}
+
+              {/* Quick Add New Category Card */}
+              <button
+                type="button"
+                onClick={() => setIsAddCategoryOpen(true)}
+                className="flex flex-col items-center justify-center p-2 rounded-xl border border-dashed border-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/20 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-center transition-all"
+              >
+                <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center">
+                  <Plus size={14} />
+                </div>
+                <span className="text-[10px] mt-1 font-bold line-clamp-1 leading-tight">
+                  {lang === 'bn' ? '+ নতুন' : '+ New'}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -385,6 +411,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
           </div>
         </form>
       </div>
+
+      {/* Add Custom Category Modal */}
+      <AddCategoryModal
+        isOpen={isAddCategoryOpen}
+        onClose={() => setIsAddCategoryOpen(false)}
+        defaultType={type}
+        onSuccess={(newCat) => setCategoryId(newCat.id)}
+      />
     </div>
   );
 };

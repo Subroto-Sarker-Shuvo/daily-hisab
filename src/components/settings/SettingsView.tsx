@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../../context/AppContext';
 import { db, seedDefaultDatabase } from '../../db/db';
+import { Category } from '../../types';
 import { hashPin, verifyPin } from '../../lib/crypto';
 import { getSupabaseConfig, resetSupabaseClient } from '../../lib/supabase';
+import { CategoryIcon } from '../common/CategoryIcon';
+import { AddCategoryModal } from '../common/AddCategoryModal';
 import {
   Globe,
   Coins,
@@ -22,6 +26,8 @@ import {
   AlertTriangle,
   ChevronDown,
   User as UserIcon,
+  Tag,
+  Plus,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -50,6 +56,22 @@ export const SettingsView: React.FC = () => {
   const [inputPin, setInputPin] = useState<string>('');
   const [confirmPin, setConfirmPin] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
+
+  // Category Management state
+  const categories = useLiveQuery(() => db.categories.toArray()) || [];
+  const [isAddCatModalOpen, setIsAddCatModalOpen] = useState<boolean>(false);
+  const [catTypeFilter, setCatTypeFilter] = useState<'ALL' | 'EXPENSE' | 'INCOME'>('EXPENSE');
+
+  const handleDeleteCategory = async (cat: Category) => {
+    if (!cat.isCustom) {
+      alert(lang === 'bn' ? 'ডিফল্ট সিস্টেম ক্যাটাগরি মুছে ফেলা যাবে না।' : 'Default system categories cannot be deleted.');
+      return;
+    }
+    if (window.confirm(lang === 'bn' ? `আপনি কি "${cat.nameBn}" ক্যাটাগরি মুছে ফেলতে চান?` : `Delete "${cat.nameEn}" category?`)) {
+      await db.categories.delete(cat.id);
+      await triggerSync();
+    }
+  };
 
   // Custom Supabase Config state
   const [showCloudConfig, setShowCloudConfig] = useState<boolean>(false);
@@ -451,7 +473,109 @@ export const SettingsView: React.FC = () => {
         </form>
       </div>
 
-      {/* 5. Security & PIN Lock */}
+      {/* 5. Category Management (নতুন ক্যাটাগরি তৈরি ও ব্যবস্থাপনা) */}
+      <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag size={18} className="text-emerald-500" />
+            <div>
+              <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                {lang === 'bn' ? 'ক্যাটাগরি ব্যবস্থাপনা' : 'Category Management'}
+              </h4>
+              <p className="text-[10px] text-slate-400">
+                {lang === 'bn'
+                  ? 'আপনার পছন্দমতো নতুন আয় ও ব্যয়ের ক্যাটাগরি তৈরি করুন'
+                  : 'Manage custom income and expense categories'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsAddCatModalOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1 hover:bg-emerald-100 transition-colors shadow-xs"
+          >
+            <Plus size={14} />
+            <span>{lang === 'bn' ? 'নতুন যোগ করুন' : 'Add New'}</span>
+          </button>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
+          <button
+            onClick={() => setCatTypeFilter('EXPENSE')}
+            className={`flex-1 py-1 rounded-lg font-bold transition-all ${
+              catTypeFilter === 'EXPENSE'
+                ? 'bg-rose-500 text-white shadow-xs'
+                : 'text-slate-500'
+            }`}
+          >
+            {lang === 'bn' ? 'ব্যয় ক্যাটাগরি' : 'Expense Categories'}
+          </button>
+          <button
+            onClick={() => setCatTypeFilter('INCOME')}
+            className={`flex-1 py-1 rounded-lg font-bold transition-all ${
+              catTypeFilter === 'INCOME'
+                ? 'bg-emerald-500 text-white shadow-xs'
+                : 'text-slate-500'
+            }`}
+          >
+            {lang === 'bn' ? 'আয় ক্যাটাগরি' : 'Income Categories'}
+          </button>
+          <button
+            onClick={() => setCatTypeFilter('ALL')}
+            className={`flex-1 py-1 rounded-lg font-bold transition-all ${
+              catTypeFilter === 'ALL'
+                ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-xs'
+                : 'text-slate-500'
+            }`}
+          >
+            {lang === 'bn' ? 'সব' : 'All'}
+          </button>
+        </div>
+
+        {/* Categories Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+          {categories
+            .filter((c) => catTypeFilter === 'ALL' || c.type === catTypeFilter)
+            .map((cat) => (
+              <div
+                key={cat.id}
+                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <CategoryIcon iconName={cat.icon} color={cat.color} size={16} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                      {lang === 'bn' ? cat.nameBn : cat.nameEn}
+                    </p>
+                    <span
+                      className={`text-[9px] font-bold ${
+                        cat.type === 'INCOME' ? 'text-emerald-500' : 'text-rose-500'
+                      }`}
+                    >
+                      {cat.type === 'INCOME'
+                        ? lang === 'bn' ? 'আয়' : 'Income'
+                        : lang === 'bn' ? 'ব্যয়' : 'Expense'}
+                      {cat.isCustom && ` • ${lang === 'bn' ? 'কাস্টম' : 'Custom'}`}
+                    </span>
+                  </div>
+                </div>
+
+                {cat.isCustom && (
+                  <button
+                    onClick={() => handleDeleteCategory(cat)}
+                    className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                    title={lang === 'bn' ? 'মুছে ফেলুন' : 'Delete'}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* 6. Security & PIN Lock */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -594,6 +718,13 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Add Category Modal */}
+      <AddCategoryModal
+        isOpen={isAddCatModalOpen}
+        onClose={() => setIsAddCatModalOpen(false)}
+        defaultType={catTypeFilter === 'INCOME' ? 'INCOME' : 'EXPENSE'}
+      />
     </div>
   );
 };

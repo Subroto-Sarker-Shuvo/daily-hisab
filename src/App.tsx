@@ -14,9 +14,10 @@ import { ReportsView } from './components/reports/ReportsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { TransactionModal } from './components/transactions/TransactionModal';
 import { PinLockScreen } from './components/auth/PinLockScreen';
+import { AuthModal } from './components/auth/AuthModal';
 
 export const App: React.FC = () => {
-  const { isPinLocked, activeTab } = useApp();
+  const { isPinLocked, activeTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
 
   // Reactive Live Subscriptions from Dexie IndexedDB with safe fallbacks
   const transactions = useLiveQuery(async () => {
@@ -163,6 +164,9 @@ export const App: React.FC = () => {
 
       {/* Add / Edit Transaction Modal */}
       <TransactionModal categories={categories} />
+
+      {/* Cloud Auth & Login Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
       {/* Sticky Bottom Navigation Bar */}
       <BottomNav />

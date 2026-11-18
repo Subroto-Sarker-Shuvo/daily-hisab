@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '../locales/translations';
 import { ActiveTab, Transaction, UserSettings } from '../types';
 import { db, defaultSettings, seedDefaultDatabase } from '../db/db';
+import { getSupabase, getSupabaseConfig } from '../lib/supabase';
+import { syncEngine } from '../lib/syncEngine';
+import type { User } from '@supabase/supabase-js';
+
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'unconfigured';
 
 interface AppContextType {
   lang: 'bn' | 'en';
@@ -19,6 +24,19 @@ interface AppContextType {
   setHasPinConfigured: (val: boolean) => void;
   monthlyBudget: number;
   setMonthlyBudget: (budget: number) => void;
+
+  // Cloud & Auth
+  user: User | null;
+  syncStatus: SyncStatus;
+  lastSyncedAt: string | null;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  triggerSync: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<{ error?: string }>;
+  signUpWithEmail: (email: string, pass: string, name?: string) => Promise<{ error?: string }>;
+  loginWithGoogle: () => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
+
   // Modal states
   isAddModalOpen: boolean;
   setIsAddModalOpen: (open: boolean) => void;
@@ -39,6 +57,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Security / PIN Lock
   const [hasPinConfigured, setHasPinConfigured] = useState<boolean>(false);
   const [isPinLocked, setIsPinLocked] = useState<boolean>(false);
+
+  // Cloud & Auth
+  const [user, setUser] = useState<User | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('unconfigured');
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(
+    localStorage.getItem('daily_hisab_last_synced')
+  );
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -72,9 +98,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Initialize Supabase & User Auth State
   useEffect(() => {
     reloadSettings();
+
+    const { isConfigured } = getSupabaseConfig();
+    if (!isConfigured) {
+      setSyncStatus('unconfigured');
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        setSyncStatus('idle');
+        // Initial silent sync
+        triggerSyncForUser(session.user.id);
+      } else {
+        setSyncStatus('idle');
+      }
+    });
+
+    // Listen for auth state changes (login, logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        setSyncStatus('idle');
+        triggerSyncForUser(session.user.id);
+      } else {
+        setSyncStatus('idle');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const triggerSyncForUser = async (userId: string) => {
+    setSyncStatus('syncing');
+    try {
+      const result = await syncEngine.performFullSync(userId);
+      if (result.success) {
+        setSyncStatus('synced');
+        setLastSyncedAt(result.lastSyncedAt || new Date().toISOString());
+        // Reset to idle after 3s
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      } else {
+        setSyncStatus('error');
+      }
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+      setSyncStatus('error');
+    }
+  };
+
+  const triggerSync = async () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    await triggerSyncForUser(user.id);
+  };
+
+  const loginWithEmail = async (email: string, pass: string): Promise<{ error?: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: 'Supabase configuration missing' };
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: pass,
+    });
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  const signUpWithEmail = async (email: string, pass: string, name?: string): Promise<{ error?: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: 'Supabase configuration missing' };
+
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: pass,
+      options: {
+        data: {
+          full_name: name?.trim() || '',
+        },
+      },
+    });
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  const loginWithGoogle = async (): Promise<{ error?: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: 'Supabase configuration missing' };
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) return { error: error.message };
+    return {};
+  };
+
+  const logout = async () => {
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+    setSyncStatus('idle');
+  };
 
   const setLang = async (newLang: 'bn' | 'en') => {
     setLangState(newLang);
@@ -122,6 +263,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setHasPinConfigured,
         monthlyBudget,
         setMonthlyBudget,
+        user,
+        syncStatus,
+        lastSyncedAt,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        triggerSync,
+        loginWithEmail,
+        signUpWithEmail,
+        loginWithGoogle,
+        logout,
         isAddModalOpen,
         setIsAddModalOpen,
         editingTransaction,

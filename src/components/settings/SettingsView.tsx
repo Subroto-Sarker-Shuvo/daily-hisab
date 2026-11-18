@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db, seedDefaultDatabase } from '../../db/db';
 import { hashPin, verifyPin } from '../../lib/crypto';
+import { getSupabaseConfig, resetSupabaseClient } from '../../lib/supabase';
 import {
   Globe,
   Coins,
@@ -12,9 +13,15 @@ import {
   Trash2,
   Lock,
   Unlock,
-  Check,
-  X,
+  Cloud,
+  RefreshCw,
+  LogIn,
+  LogOut,
+  Database,
+  CheckCircle,
   AlertTriangle,
+  ChevronDown,
+  User as UserIcon,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -28,6 +35,12 @@ export const SettingsView: React.FC = () => {
     hasPinConfigured,
     setHasPinConfigured,
     reloadSettings,
+    user,
+    syncStatus,
+    lastSyncedAt,
+    triggerSync,
+    logout,
+    setIsAuthModalOpen,
     t,
   } = useApp();
 
@@ -37,6 +50,16 @@ export const SettingsView: React.FC = () => {
   const [inputPin, setInputPin] = useState<string>('');
   const [confirmPin, setConfirmPin] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
+
+  // Custom Supabase Config state
+  const [showCloudConfig, setShowCloudConfig] = useState<boolean>(false);
+  const currentConfig = getSupabaseConfig();
+  const [customUrl, setCustomUrl] = useState<string>(
+    localStorage.getItem('supabase_custom_url') || ''
+  );
+  const [customKey, setCustomKey] = useState<string>(
+    localStorage.getItem('supabase_custom_key') || ''
+  );
 
   const currencies = [
     { symbol: '৳', label: 'BDT (৳) - বাংলাদেশ' },
@@ -53,6 +76,23 @@ export const SettingsView: React.FC = () => {
     if (!isNaN(val) && val >= 0) {
       setMonthlyBudget(val);
       alert(t.common.success);
+    }
+  };
+
+  const handleSaveCustomCloud = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (customUrl.trim() && customKey.trim()) {
+      localStorage.setItem('supabase_custom_url', customUrl.trim());
+      localStorage.setItem('supabase_custom_key', customKey.trim());
+      resetSupabaseClient();
+      alert(lang === 'bn' ? 'ক্লাউড কনফিগারেশন সংরক্ষিত হয়েছে!' : 'Cloud configuration saved!');
+      window.location.reload();
+    } else {
+      localStorage.removeItem('supabase_custom_url');
+      localStorage.removeItem('supabase_custom_key');
+      resetSupabaseClient();
+      alert(lang === 'bn' ? 'ডিফল্ট সেটিংসে রিস্টোর করা হয়েছে।' : 'Restored to default configuration.');
+      window.location.reload();
     }
   };
 
@@ -179,7 +219,13 @@ export const SettingsView: React.FC = () => {
   // Clear All Data
   const handleClearAll = async () => {
     if (window.confirm(t.settings.clearConfirm)) {
-      if (window.confirm(lang === 'bn' ? 'চূড়ান্ত সতর্কতা: সব ডাটা স্থায়ীভাবে মুছে যাবে!' : 'Final Warning: All data will be permanently wiped!')) {
+      if (
+        window.confirm(
+          lang === 'bn'
+            ? 'চূড়ান্ত সতর্কতা: সব ডাটা স্থায়ীভাবে মুছে যাবে!'
+            : 'Final Warning: All data will be permanently wiped!'
+        )
+      ) {
         await db.transactions.clear();
         await db.debts.clear();
         await seedDefaultDatabase();
@@ -195,7 +241,127 @@ export const SettingsView: React.FC = () => {
         {t.settings.title}
       </h3>
 
-      {/* Language Setting */}
+      {/* 1. Cloud Sync & Account Section (New Step 1 Feature) */}
+      <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-slate-50 dark:to-slate-900/60 p-4 border border-emerald-500/30 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
+              <Cloud size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                {lang === 'bn' ? 'ক্লাউড সিঙ্ক ও অ্যাকাউন্ট' : 'Cloud Sync & Account'}
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {user
+                  ? user.email
+                  : lang === 'bn'
+                  ? 'গুগল বা ইমেইল দিয়ে লগইন করুন'
+                  : 'Sign in to sync across devices'}
+              </p>
+            </div>
+          </div>
+
+          {user ? (
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={17} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <LogIn size={14} />
+              {lang === 'bn' ? 'লগইন' : 'Sign In'}
+            </button>
+          )}
+        </div>
+
+        {user && (
+          <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs">
+            <div className="text-[11px] text-slate-500">
+              <span>{lang === 'bn' ? 'সর্বশেষ সিঙ্ক: ' : 'Last Synced: '}</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : 'Never'}
+              </span>
+            </div>
+
+            <button
+              onClick={triggerSync}
+              disabled={syncStatus === 'syncing'}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+            >
+              <RefreshCw
+                size={13}
+                className={syncStatus === 'syncing' ? 'animate-spin text-emerald-600' : 'text-emerald-600'}
+              />
+              {syncStatus === 'syncing'
+                ? lang === 'bn' ? 'সিঙ্ক হচ্ছে...' : 'Syncing...'
+                : lang === 'bn' ? 'এখনই সিঙ্ক করুন' : 'Sync Now'}
+            </button>
+          </div>
+        )}
+
+        {/* Custom Supabase Settings Accordion */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowCloudConfig(!showCloudConfig)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+          >
+            <Database size={13} />
+            <span>
+              {lang === 'bn' ? 'নিজস্ব Supabase ক্লাউড কনফিগারেশন' : 'Custom Supabase Database Config'}
+            </span>
+            <ChevronDown
+              size={13}
+              className={`transition-transform ${showCloudConfig ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showCloudConfig && (
+            <form onSubmit={handleSaveCustomCloud} className="mt-2 space-y-2 p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+              <p className="text-[10px] text-slate-400">
+                {lang === 'bn'
+                  ? 'আপনার নিজস্ব Supabase প্রজেক্ট লিংক ও অ্যানন কি দিয়ে যেকোনো ডাটাবেজে হোস্ট করতে পারেন।'
+                  : 'Host on your own Supabase project by entering URL & Anon Key.'}
+              </p>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Project URL</label>
+                <input
+                  type="url"
+                  placeholder="https://xyzcompany.supabase.co"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Anon Public Key</label>
+                <input
+                  type="password"
+                  placeholder="eyJhbGciOi..."
+                  value={customKey}
+                  onChange={(e) => setCustomKey(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-xs"
+                />
+              </div>
+              <button
+                type="submit"
+                className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+              >
+                {lang === 'bn' ? 'সংরক্ষণ করুন' : 'Save Config'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Language Setting */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center gap-2">
           <Globe size={18} className="text-emerald-500" />
@@ -227,7 +393,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Currency Setting */}
+      {/* 3. Currency Setting */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center gap-2">
           <Coins size={18} className="text-emerald-500" />
@@ -255,7 +421,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Monthly Budget Setting */}
+      {/* 4. Monthly Budget Setting */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
         <div className="flex items-center gap-2">
           <Target size={18} className="text-emerald-500" />
@@ -285,7 +451,7 @@ export const SettingsView: React.FC = () => {
         </form>
       </div>
 
-      {/* Security & PIN Lock */}
+      {/* 5. Security & PIN Lock */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -296,12 +462,8 @@ export const SettingsView: React.FC = () => {
               </h4>
               <p className="text-[10px] text-slate-400">
                 {hasPinConfigured
-                  ? lang === 'bn'
-                    ? 'অ্যাপ লক সক্রিয় আছে'
-                    : 'App Lock is Active'
-                  : lang === 'bn'
-                  ? 'অ্যাপ লক নিষ্ক্রিয়'
-                  : 'App Lock Disabled'}
+                  ? lang === 'bn' ? 'অ্যাপ লক সক্রিয় আছে' : 'App Lock is Active'
+                  : lang === 'bn' ? 'অ্যাপ লক নিষ্ক্রিয়' : 'App Lock Disabled'}
               </p>
             </div>
           </div>
@@ -334,7 +496,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Backup & Restore */}
+      {/* 6. Local Backup & Restore */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
         <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
           {t.settings.backupRestore}
@@ -356,7 +518,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Danger Zone */}
+      {/* 7. Danger Zone */}
       <div className="rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 p-4 border border-rose-200/60 dark:border-rose-900/40 space-y-2">
         <h4 className="font-bold text-xs text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
           <AlertTriangle size={15} />

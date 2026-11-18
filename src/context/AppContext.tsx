@@ -216,7 +216,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loginWithEmail = async (email: string, pass: string): Promise<{ error?: string }> => {
     const supabase = getSupabase();
-    if (!supabase) return { error: 'Supabase configuration missing' };
+    if (!supabase) {
+      return {
+        error:
+          lang === 'bn'
+            ? 'সুপাবেস (Supabase) ক্লাউড কনফিগারেশন মিসিং। অনুগ্রহ করে সেটিংস বা মডালে URL ও Key দিন।'
+            : 'Supabase configuration missing. Please provide URL and Key.',
+      };
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -228,7 +235,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signUpWithEmail = async (email: string, pass: string, name?: string): Promise<{ error?: string }> => {
     const supabase = getSupabase();
-    if (!supabase) return { error: 'Supabase configuration missing' };
+    if (!supabase) {
+      return {
+        error:
+          lang === 'bn'
+            ? 'সুপাবেস (Supabase) ক্লাউড কনফিগারেশন মিসিং। অনুগ্রহ করে সেটিংস বা মডালে URL ও Key দিন।'
+            : 'Supabase configuration missing. Please provide URL and Key.',
+      };
+    }
 
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -245,7 +259,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loginWithGoogle = async (): Promise<{ error?: string }> => {
     const supabase = getSupabase();
-    if (!supabase) return { error: 'Supabase configuration missing' };
+    if (!supabase) {
+      return {
+        error:
+          lang === 'bn'
+            ? 'সুপাবেস (Supabase) ক্লাউড কনফিগারেশন মিসিং। অনুগ্রহ করে সেটিংস বা মডালে URL ও Key দিন।'
+            : 'Supabase configuration missing. Please provide URL and Key.',
+      };
+    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

@@ -1,6 +1,22 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Mail, Lock, User, LogIn, UserPlus, Cloud, CheckCircle, AlertCircle } from 'lucide-react';
+import { getSupabaseConfig, resetSupabaseClient } from '../../lib/supabase';
+import {
+  X,
+  Mail,
+  Lock,
+  User,
+  LogIn,
+  UserPlus,
+  Cloud,
+  CheckCircle,
+  AlertCircle,
+  Database,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Save,
+} from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -9,6 +25,12 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const { lang, loginWithEmail, signUpWithEmail, loginWithGoogle } = useApp();
+
+  const currentConfig = getSupabaseConfig();
+  const [isConfigured, setIsConfigured] = useState<boolean>(currentConfig.isConfigured);
+  const [showConfigSetup, setShowConfigSetup] = useState<boolean>(!currentConfig.isConfigured);
+  const [cfgUrl, setCfgUrl] = useState<string>(currentConfig.url || '');
+  const [cfgKey, setCfgKey] = useState<string>(currentConfig.key || '');
 
   const [mode, setMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
@@ -19,9 +41,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cfgUrl.trim() || !cfgKey.trim() || !cfgUrl.startsWith('http')) {
+      alert(
+        lang === 'bn'
+          ? 'অনুগ্রহ করে সঠিক Supabase Project URL (যেমন https://xxx.supabase.co) এবং Anon Key দিন।'
+          : 'Please provide valid Supabase Project URL and Anon Key.'
+      );
+      return;
+    }
+
+    localStorage.setItem('supabase_custom_url', cfgUrl.trim());
+    localStorage.setItem('supabase_custom_key', cfgKey.trim());
+    resetSupabaseClient();
+    setIsConfigured(true);
+    setShowConfigSetup(false);
+    setMessage({
+      text:
+        lang === 'bn'
+          ? 'সুপাবেস ক্লাউড সফলভাবে সংযুক্ত হয়েছে! এখন একাউন্ট তৈরি বা লগইন করুন।'
+          : 'Supabase connected! You can now sign in or create an account.',
+      type: 'success',
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    if (!isConfigured) {
+      setShowConfigSetup(true);
+      setMessage({
+        text:
+          lang === 'bn'
+            ? 'ক্লাউড সিঙ্ক চালু করতে প্রথমে নিচে Supabase URL ও Key সেট করুন, অথবা অফলাইনে অ্যাপটি ব্যবহার করুন।'
+            : 'Please configure Supabase URL and Key below, or continue offline.',
+        type: 'error',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -31,7 +91,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           setMessage({ text: res.error, type: 'error' });
         } else {
           setMessage({
-            text: lang === 'bn' ? 'লগইন সফল হয়েছে! ক্লাউড সিঙ্ক চালু হচ্ছে...' : 'Login successful! Syncing cloud...',
+            text:
+              lang === 'bn'
+                ? 'লগইন সফল হয়েছে! ক্লাউড সিঙ্ক চালু হচ্ছে...'
+                : 'Login successful! Syncing cloud...',
             type: 'success',
           });
           setTimeout(onClose, 1200);
@@ -42,7 +105,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           setMessage({ text: res.error, type: 'error' });
         } else {
           setMessage({
-            text: lang === 'bn' ? 'অ্যাকাউন্ট তৈরি হয়েছে! আপনার ইমেইল চেক করুন।' : 'Account created! Please check your email.',
+            text:
+              lang === 'bn'
+                ? 'অ্যাকাউন্ট তৈরি হয়েছে! আপনার ইমেইল চেক করে ভেরিফাই করুন।'
+                : 'Account created! Please check your email to verify.',
             type: 'success',
           });
         }
@@ -54,6 +120,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   const handleGoogleAuth = async () => {
     setMessage(null);
+    if (!isConfigured) {
+      setShowConfigSetup(true);
+      setMessage({
+        text:
+          lang === 'bn'
+            ? 'গুগল লগইনের জন্য Supabase ক্লাউড কনফিগারেশন প্রয়োজন।'
+            : 'Supabase configuration required for Google Sign-in.',
+        type: 'error',
+      });
+      return;
+    }
+
     const res = await loginWithGoogle();
     if (res.error) {
       setMessage({ text: res.error, type: 'error' });
@@ -61,8 +139,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -77,6 +155,100 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <X size={18} />
           </button>
         </div>
+
+        {/* Missing Supabase Warning Banner */}
+        {!isConfigured && (
+          <div className="mt-3.5 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200 mb-1">
+              <AlertCircle size={15} className="text-amber-600 flex-shrink-0" />
+              <span>
+                {lang === 'bn'
+                  ? 'সুপাবেস ক্লাউড কানেকশন প্রয়োজন'
+                  : 'Supabase Cloud Config Required'}
+              </span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+              {lang === 'bn'
+                ? 'ক্লাউডে হিসাব সেভ রাখতে বিনামূল্যে Supabase প্রজেক্ট URL ও Key প্রয়োজন। অথবা ইন্টারনেট/ক্লাউড ছাড়াই সম্পূর্ণ অফলাইনে চালাতে নিচের বাটনে ক্লিক করুন।'
+                : 'To sync across devices, free Supabase credentials are required. Or continue 100% offline.'}
+            </p>
+
+            <div className="mt-2.5 pt-2 border-t border-amber-200 dark:border-amber-900/60 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowConfigSetup(!showConfigSetup)}
+                className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+              >
+                <Database size={13} />
+                <span>
+                  {showConfigSetup
+                    ? lang === 'bn' ? 'সেটআপ লুকান' : 'Hide Setup'
+                    : lang === 'bn' ? '⚙️ URL ও Key সেট করুন' : '⚙️ Enter URL & Key'}
+                </span>
+                {showConfigSetup ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+
+              <a
+                href="https://supabase.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5 hover:underline"
+              >
+                <span>{lang === 'bn' ? 'ফ্রি অ্যাকাউন্ট' : 'Free Supabase'}</span>
+                <ExternalLink size={11} />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Collapsible Config Input Form */}
+        {showConfigSetup && (
+          <form
+            onSubmit={handleSaveConfig}
+            className="mt-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs"
+          >
+            <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <Database size={14} className="text-emerald-600" />
+              <span>{lang === 'bn' ? 'Supabase প্রজেক্ট ক্রেডেনশিয়াল' : 'Supabase Credentials'}</span>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                Project URL (https://xyz.supabase.co)
+              </label>
+              <input
+                type="url"
+                required
+                placeholder="https://your-id.supabase.co"
+                value={cfgUrl}
+                onChange={(e) => setCfgUrl(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                Anon Public Key (eyJhbG...)
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="eyJhbGciOi..."
+                value={cfgKey}
+                onChange={(e) => setCfgKey(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Save size={13} />
+              <span>{lang === 'bn' ? 'সেভ ও সংযোগ করুন' : 'Save & Connect'}</span>
+            </button>
+          </form>
+        )}
 
         {/* Google One-Click Login */}
         <div className="mt-4">
@@ -158,7 +330,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <input
                   type="text"
                   required
-                  placeholder={lang === 'bn' ? 'যেমন: রহিম আহমেদ' : 'e.g. Rahim Ahmed'}
+                  placeholder={lang === 'bn' ? 'যেমন: সুব্রত সরকার' : 'e.g. Subroto Sarker'}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs focus:ring-2 focus:ring-emerald-500"
@@ -230,14 +402,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
         </form>
 
-        <div className="mt-3 text-center">
+        {/* Offline Fallback Action Button */}
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center space-y-1">
           <button
             type="button"
             onClick={onClose}
-            className="text-[11px] text-slate-400 hover:text-slate-600 font-medium"
+            className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
           >
-            {lang === 'bn' ? 'অফলাইনে হিসেবে চালিয়ে যান' : 'Continue as Guest (Offline)'}
+            <span>{lang === 'bn' ? '✓ অফলাইনে হিসেবে চালিয়ে যান (কোনো সেটাপ ছাড়াই)' : '✓ Continue Offline as Guest'}</span>
           </button>
+          <p className="text-[10px] text-slate-400">
+            {lang === 'bn'
+              ? 'অফলাইনে আপনার ডিভাইসে হিসাব ১০০% সুরক্ষিত থাকবে'
+              : 'All data is 100% saved offline on your device'}
+          </p>
         </div>
       </div>
     </div>

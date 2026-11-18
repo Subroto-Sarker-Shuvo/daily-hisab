@@ -21,7 +21,7 @@ interface DebtsViewProps {
 }
 
 export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
-  const { lang, currencySymbol, t } = useApp();
+  const { lang, currencySymbol, currentBookId, t } = useApp();
 
   const [activeDebtType, setActiveDebtType] = useState<DebtType>('RECEIVABLE');
   const [isAddDebtOpen, setIsAddDebtOpen] = useState<boolean>(false);
@@ -60,6 +60,7 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
 
     const newRecord: DebtRecord = {
       id: crypto.randomUUID(),
+      bookId: currentBookId !== 'all' ? currentBookId : 'default_personal',
       personName: personName.trim(),
       phoneNumber: phoneNumber.trim() || undefined,
       type: activeDebtType,
@@ -116,6 +117,7 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
     // Automatically record this as a cash transaction if desired
     await db.transactions.add({
       id: crypto.randomUUID(),
+      bookId: settlingDebt.bookId || (currentBookId !== 'all' ? currentBookId : 'default_personal'),
       type: settlingDebt.type === 'RECEIVABLE' ? 'INCOME' : 'EXPENSE',
       amount,
       categoryId: settlingDebt.type === 'RECEIVABLE' ? 'cat_income_other' : 'cat_expense_other',

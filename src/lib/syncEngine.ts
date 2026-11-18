@@ -1,6 +1,6 @@
 import { getSupabase } from './supabase';
 import { db } from '../db/db';
-import { Transaction, DebtRecord, Category, UserSettings } from '../types';
+import { Transaction, DebtRecord, Category, UserSettings, Cashbook } from '../types';
 
 export interface SyncResult {
   success: boolean;
@@ -15,20 +15,41 @@ export const syncEngine = {
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase is not configured');
 
-    const [transactions, debts, categories, settings] = await Promise.all([
+    const [transactions, debts, categories, cashbooks, settings] = await Promise.all([
       db.transactions.toArray(),
       db.debts.toArray(),
       db.categories.toArray(),
+      db.cashbooks.toArray(),
       (db.settings as any).get('user_preferences'),
     ]);
 
     let count = 0;
 
-    // 1. Transactions
+    // 1. Cashbooks (Khatas)
+    if (cashbooks.length > 0) {
+      const bookRows = cashbooks.map((b) => ({
+        id: b.id,
+        user_id: userId,
+        name: b.name,
+        type: b.type,
+        icon: b.icon || 'Book',
+        color: b.color || '#10B981',
+        is_default: Boolean(b.isDefault),
+        created_at: b.createdAt,
+        updated_at: b.updatedAt,
+      }));
+
+      const { error } = await supabase.from('cloud_cashbooks').upsert(bookRows);
+      if (error) console.error('Error syncing cashbooks to cloud:', error);
+      else count += cashbooks.length;
+    }
+
+    // 2. Transactions
     if (transactions.length > 0) {
       const txRows = transactions.map((t) => ({
         id: t.id,
         user_id: userId,
+        book_id: t.bookId || 'default_personal',
         type: t.type,
         amount: t.amount,
         category_id: t.categoryId,
@@ -45,11 +66,12 @@ export const syncEngine = {
       else count += transactions.length;
     }
 
-    // 2. Debts (দেনা-পাওনা)
+    // 3. Debts (দেনা-পাওনা)
     if (debts.length > 0) {
       const debtRows = debts.map((d) => ({
         id: d.id,
         user_id: userId,
+        book_id: d.bookId || 'default_personal',
         person_name: d.personName,
         phone_number: d.phoneNumber || null,
         type: d.type,
@@ -68,7 +90,7 @@ export const syncEngine = {
       else count += debts.length;
     }
 
-    // 3. Categories
+    // 4. Categories
     if (categories.length > 0) {
       const catRows = categories.map((c) => ({
         id: c.id,
@@ -85,7 +107,7 @@ export const syncEngine = {
       if (error) console.error('Error syncing categories to cloud:', error);
     }
 
-    // 4. User Settings
+    // 5. User Settings
     if (settings) {
       const settingsRow = {
         user_id: userId,
@@ -96,6 +118,7 @@ export const syncEngine = {
         theme: settings.theme || 'light',
         is_pin_enabled: settings.isPinEnabled || false,
         pin_hash: settings.pinHash || null,
+        active_book_id: settings.activeBookId || 'default_personal',
         updated_at: Date.now(),
       };
       await supabase.from('cloud_settings').upsert(settingsRow);
@@ -111,7 +134,28 @@ export const syncEngine = {
 
     let count = 0;
 
-    // 1. Fetch Cloud Transactions
+    // 1. Fetch Cloud Cashbooks
+    const { data: cloudBooks, error: bookErr } = await supabase
+      .from('cloud_cashbooks')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (!bookErr && cloudBooks && cloudBooks.length > 0) {
+      const localBooks: Cashbook[] = cloudBooks.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        icon: row.icon || 'Book',
+        color: row.color || '#10B981',
+        isDefault: Boolean(row.is_default),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+      }));
+      await db.cashbooks.bulkPut(localBooks);
+      count += localBooks.length;
+    }
+
+    // 2. Fetch Cloud Transactions
     const { data: cloudTxs, error: txErr } = await supabase
       .from('cloud_transactions')
       .select('*')
@@ -120,6 +164,7 @@ export const syncEngine = {
     if (!txErr && cloudTxs && cloudTxs.length > 0) {
       const localTxs: Transaction[] = cloudTxs.map((row: any) => ({
         id: row.id,
+        bookId: row.book_id || 'default_personal',
         type: row.type,
         amount: Number(row.amount),
         categoryId: row.category_id,
@@ -134,7 +179,7 @@ export const syncEngine = {
       count += localTxs.length;
     }
 
-    // 2. Fetch Cloud Debts
+    // 3. Fetch Cloud Debts
     const { data: cloudDebts, error: debtErr } = await supabase
       .from('cloud_debts')
       .select('*')
@@ -143,6 +188,7 @@ export const syncEngine = {
     if (!debtErr && cloudDebts && cloudDebts.length > 0) {
       const localDebts: DebtRecord[] = cloudDebts.map((row: any) => ({
         id: row.id,
+        bookId: row.book_id || 'default_personal',
         personName: row.person_name,
         phoneNumber: row.phone_number || undefined,
         type: row.type,
@@ -159,7 +205,7 @@ export const syncEngine = {
       count += localDebts.length;
     }
 
-    // 3. Fetch Cloud Settings
+    // 4. Fetch Cloud Settings
     const { data: cloudSettings, error: setErr } = await supabase
       .from('cloud_settings')
       .select('*')
@@ -175,6 +221,7 @@ export const syncEngine = {
         theme: cloudSettings.theme || 'light',
         isPinEnabled: cloudSettings.is_pin_enabled || false,
         pinHash: cloudSettings.pin_hash || undefined,
+        activeBookId: cloudSettings.active_book_id || 'default_personal',
       };
       await (db.settings as any).put({ ...localSettings, key: 'user_preferences' });
     }

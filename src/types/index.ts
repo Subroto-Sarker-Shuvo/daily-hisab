@@ -2,8 +2,22 @@ export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER';
 
 export type PaymentMethod = 'CASH' | 'BKASH' | 'NAGAD' | 'ROCKET' | 'BANK' | 'OTHER';
 
+export type CashbookType = 'PERSONAL' | 'BUSINESS' | 'FAMILY' | 'OTHER';
+
+export interface Cashbook {
+  id: string;
+  name: string;
+  type: CashbookType;
+  icon?: string;
+  color?: string;
+  isDefault?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Transaction {
   id: string;
+  bookId?: string; // Links to Cashbook (Defaults to 'default_personal')
   type: TransactionType;
   amount: number;
   categoryId: string;
@@ -39,6 +53,7 @@ export interface DebtSettlement {
 
 export interface DebtRecord {
   id: string;
+  bookId?: string; // Links to Cashbook
   personName: string;
   phoneNumber?: string;
   type: DebtType;
@@ -60,6 +75,7 @@ export interface UserSettings {
   theme: 'light' | 'dark';
   isPinEnabled: boolean;
   pinHash?: string;
+  activeBookId?: string;
 }
 
 export type ActiveTab = 'dashboard' | 'transactions' | 'debts' | 'reports' | 'settings';

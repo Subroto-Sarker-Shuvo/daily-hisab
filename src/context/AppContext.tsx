@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '../locales/translations';
-import { ActiveTab, Transaction, UserSettings } from '../types';
+import { ActiveTab, Transaction, UserSettings, Cashbook, CashbookType } from '../types';
 import { db, defaultSettings, seedDefaultDatabase } from '../db/db';
 import { getSupabase, getSupabaseConfig } from '../lib/supabase';
 import { syncEngine } from '../lib/syncEngine';
@@ -24,6 +24,14 @@ interface AppContextType {
   setHasPinConfigured: (val: boolean) => void;
   monthlyBudget: number;
   setMonthlyBudget: (budget: number) => void;
+
+  // Multiple Cashbooks / Khatas
+  currentBookId: string;
+  setCurrentBookId: (id: string) => Promise<void>;
+  isKhataModalOpen: boolean;
+  setIsKhataModalOpen: (open: boolean) => void;
+  addCashbook: (name: string, type: CashbookType, icon?: string, color?: string) => Promise<Cashbook>;
+  deleteCashbook: (id: string) => Promise<void>;
 
   // Cloud & Auth
   user: User | null;
@@ -58,6 +66,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [hasPinConfigured, setHasPinConfigured] = useState<boolean>(false);
   const [isPinLocked, setIsPinLocked] = useState<boolean>(false);
 
+  // Cashbook / Khata state
+  const [currentBookId, setCurrentBookIdState] = useState<string>('default_personal');
+  const [isKhataModalOpen, setIsKhataModalOpen] = useState<boolean>(false);
+
   // Cloud & Auth
   const [user, setUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('unconfigured');
@@ -78,6 +90,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLangState(settingsRecord.language || 'bn');
         setCurrencySymbolState(settingsRecord.currencySymbol || '৳');
         setMonthlyBudgetState(settingsRecord.monthlyBudgetLimit || 25000);
+        setCurrentBookIdState(settingsRecord.activeBookId || 'default_personal');
         setThemeState(settingsRecord.theme || 'light');
         if (settingsRecord.theme === 'dark') {
           document.documentElement.classList.add('dark');
@@ -116,7 +129,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (session?.user) {
         setUser(session.user);
         setSyncStatus('idle');
-        // Initial silent sync
         triggerSyncForUser(session.user.id);
       } else {
         setSyncStatus('idle');
@@ -139,6 +151,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  const setCurrentBookId = async (id: string) => {
+    setCurrentBookIdState(id);
+    await (db.settings as any).update('user_preferences', { activeBookId: id });
+  };
+
+  const addCashbook = async (
+    name: string,
+    type: CashbookType,
+    icon: string = 'Book',
+    color: string = '#10B981'
+  ): Promise<Cashbook> => {
+    const newBook: Cashbook = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      type,
+      icon,
+      color,
+      isDefault: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await db.cashbooks.add(newBook);
+    await setCurrentBookId(newBook.id);
+    return newBook;
+  };
+
+  const deleteCashbook = async (id: string) => {
+    if (id === 'default_personal') return; // Cannot delete default
+    await db.cashbooks.delete(id);
+    // Move all transactions and debts in this book to default_personal
+    await db.transactions.where('bookId').equals(id).modify({ bookId: 'default_personal' });
+    await db.debts.where('bookId').equals(id).modify({ bookId: 'default_personal' });
+    await setCurrentBookId('default_personal');
+  };
+
   const triggerSyncForUser = async (userId: string) => {
     setSyncStatus('syncing');
     try {
@@ -146,7 +193,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (result.success) {
         setSyncStatus('synced');
         setLastSyncedAt(result.lastSyncedAt || new Date().toISOString());
-        // Reset to idle after 3s
         setTimeout(() => setSyncStatus('idle'), 3000);
       } else {
         setSyncStatus('error');
@@ -263,6 +309,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setHasPinConfigured,
         monthlyBudget,
         setMonthlyBudget,
+        currentBookId,
+        setCurrentBookId,
+        isKhataModalOpen,
+        setIsKhataModalOpen,
+        addCashbook,
+        deleteCashbook,
         user,
         syncStatus,
         lastSyncedAt,

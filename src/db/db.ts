@@ -1,24 +1,68 @@
 import Dexie, { type Table } from 'dexie';
-import { Transaction, Category, DebtRecord, UserSettings } from '../types';
+import { Transaction, Category, DebtRecord, UserSettings, Cashbook } from '../types';
 
 export class DailyHisabDatabase extends Dexie {
   transactions!: Table<Transaction, string>;
   categories!: Table<Category, string>;
   debts!: Table<DebtRecord, string>;
   settings!: Table<UserSettings, string>;
+  cashbooks!: Table<Cashbook, string>;
 
   constructor() {
     super('DailyHisabDB');
+
+    // Schema version 1
     this.version(1).stores({
       transactions: 'id, type, amount, categoryId, paymentMethod, date, createdAt',
       categories: 'id, type, nameEn, nameBn',
       debts: 'id, type, personName, status, dueDate, createdAt',
       settings: 'key',
     });
+
+    // Schema version 2: Multiple Cashbooks & Book ID Linking
+    this.version(2).stores({
+      transactions: 'id, bookId, type, amount, categoryId, paymentMethod, date, createdAt',
+      categories: 'id, type, nameEn, nameBn',
+      debts: 'id, bookId, type, personName, status, dueDate, createdAt',
+      settings: 'key',
+      cashbooks: 'id, name, type, createdAt',
+    }).upgrade(async (trans) => {
+      // Migrate old transactions and debts to 'default_personal'
+      await trans.table('transactions').toCollection().modify((t) => {
+        if (!t.bookId) t.bookId = 'default_personal';
+      });
+      await trans.table('debts').toCollection().modify((d) => {
+        if (!d.bookId) d.bookId = 'default_personal';
+      });
+    });
   }
 }
 
 export const db = new DailyHisabDatabase();
+
+// Default Cashbooks
+export const defaultCashbooks: Cashbook[] = [
+  {
+    id: 'default_personal',
+    name: 'ব্যক্তিগত হিসাব',
+    type: 'PERSONAL',
+    icon: 'User',
+    color: '#10B981',
+    isDefault: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+  {
+    id: 'default_business',
+    name: 'দোকান / ব্যবসার খাতা',
+    type: 'BUSINESS',
+    icon: 'Store',
+    color: '#6366F1',
+    isDefault: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+];
 
 // Default Categories Seed List
 export const defaultCategories: Category[] = [
@@ -50,15 +94,24 @@ export const defaultSettings: UserSettings = {
   monthlyBudgetLimit: 25000,
   theme: 'light',
   isPinEnabled: false,
+  activeBookId: 'default_personal',
 };
 
 // Seed database on first run
 export const seedDefaultDatabase = async () => {
+  // 1. Seed Categories
   const catCount = await db.categories.count();
   if (catCount === 0) {
     await db.categories.bulkAdd(defaultCategories);
   }
 
+  // 2. Seed Default Cashbooks
+  const bookCount = await db.cashbooks.count();
+  if (bookCount === 0) {
+    await db.cashbooks.bulkAdd(defaultCashbooks);
+  }
+
+  // 3. Seed Settings
   const existingSettings = await (db.settings as any).get('user_preferences');
   if (!existingSettings) {
     await (db.settings as any).put({ ...defaultSettings, key: 'user_preferences' });

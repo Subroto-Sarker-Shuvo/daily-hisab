@@ -12,10 +12,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Cloud Transactions Table
+-- 2. Cloud Cashbooks Table (একাধিক খাতা)
+CREATE TABLE IF NOT EXISTS public.cloud_cashbooks (
+  id TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'PERSONAL', -- 'PERSONAL', 'BUSINESS', 'FAMILY', 'OTHER'
+  icon TEXT DEFAULT 'Book',
+  color TEXT DEFAULT '#10B981',
+  is_default BOOLEAN DEFAULT false,
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL,
+  PRIMARY KEY (id, user_id)
+);
+
+-- 3. Cloud Transactions Table
 CREATE TABLE IF NOT EXISTS public.cloud_transactions (
   id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  book_id TEXT DEFAULT 'default_personal',
   type TEXT NOT NULL, -- 'INCOME', 'EXPENSE', 'TRANSFER'
   amount NUMERIC NOT NULL,
   category_id TEXT NOT NULL,
@@ -27,10 +42,11 @@ CREATE TABLE IF NOT EXISTS public.cloud_transactions (
   updated_at BIGINT NOT NULL
 );
 
--- 3. Cloud Debts Table (দেনা-পাওনা)
+-- 4. Cloud Debts Table (দেনা-পাওনা)
 CREATE TABLE IF NOT EXISTS public.cloud_debts (
   id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  book_id TEXT DEFAULT 'default_personal',
   person_name TEXT NOT NULL,
   phone_number TEXT,
   type TEXT NOT NULL, -- 'RECEIVABLE', 'PAYABLE'
@@ -44,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.cloud_debts (
   updated_at BIGINT NOT NULL
 );
 
--- 4. Cloud Custom Categories Table
+-- 5. Cloud Custom Categories Table
 CREATE TABLE IF NOT EXISTS public.cloud_categories (
   id TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -57,7 +73,7 @@ CREATE TABLE IF NOT EXISTS public.cloud_categories (
   PRIMARY KEY (id, user_id)
 );
 
--- 5. Cloud User Settings Table
+-- 6. Cloud User Settings Table
 CREATE TABLE IF NOT EXISTS public.cloud_settings (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   language TEXT DEFAULT 'bn',
@@ -67,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.cloud_settings (
   theme TEXT DEFAULT 'light',
   is_pin_enabled BOOLEAN DEFAULT false,
   pin_hash TEXT,
+  active_book_id TEXT DEFAULT 'default_personal',
   updated_at BIGINT NOT NULL
 );
 
@@ -75,6 +92,7 @@ CREATE TABLE IF NOT EXISTS public.cloud_settings (
 -- ========================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cloud_cashbooks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_debts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_categories ENABLE ROW LEVEL SECURITY;
@@ -84,6 +102,10 @@ ALTER TABLE public.cloud_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Cashbooks Policies
+CREATE POLICY "Users can manage own cashbooks" ON public.cloud_cashbooks
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Transactions Policies
 CREATE POLICY "Users can manage own transactions" ON public.cloud_transactions

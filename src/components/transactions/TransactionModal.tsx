@@ -18,6 +18,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
     editingTransaction,
     setEditingTransaction,
     currencySymbol,
+    currentBookId,
     lang,
     t,
   } = useApp();
@@ -92,6 +93,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
       const now = Date.now();
       const txData: Transaction = {
         id: editingTransaction ? editingTransaction.id : crypto.randomUUID(),
+        bookId: editingTransaction?.bookId || (currentBookId !== 'all' ? currentBookId : 'default_personal'),
         type,
         amount: numAmount,
         categoryId: categoryId || 'cat_expense_other',

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db/db';
 import { useApp } from './context/AppContext';
-import { Category } from './types';
+import { Category, Cashbook } from './types';
 import { Navbar } from './components/layout/Navbar';
 import { BottomNav } from './components/layout/BottomNav';
 import { BalanceCards } from './components/dashboard/BalanceCards';
@@ -15,37 +15,75 @@ import { SettingsView } from './components/settings/SettingsView';
 import { TransactionModal } from './components/transactions/TransactionModal';
 import { PinLockScreen } from './components/auth/PinLockScreen';
 import { AuthModal } from './components/auth/AuthModal';
+import { KhataSelectorModal } from './components/cashbooks/KhataSelectorModal';
 
 export const App: React.FC = () => {
-  const { isPinLocked, activeTab, isAuthModalOpen, setIsAuthModalOpen } = useApp();
+  const {
+    isPinLocked,
+    activeTab,
+    currentBookId,
+    isKhataModalOpen,
+    setIsKhataModalOpen,
+    isAuthModalOpen,
+    setIsAuthModalOpen,
+  } = useApp();
 
   // Reactive Live Subscriptions from Dexie IndexedDB with safe fallbacks
-  const transactions = useLiveQuery(async () => {
-    try {
-      return await db.transactions.orderBy('date').reverse().toArray();
-    } catch (e) {
-      console.warn('Transactions fallback query:', e);
-      return await db.transactions.toArray();
-    }
-  }) || [];
+  const allTransactions =
+    useLiveQuery(async () => {
+      try {
+        return await db.transactions.orderBy('date').reverse().toArray();
+      } catch (e) {
+        console.warn('Transactions fallback query:', e);
+        return await db.transactions.toArray();
+      }
+    }) || [];
 
-  const categories = useLiveQuery(async () => {
-    try {
-      return await db.categories.toArray();
-    } catch (e) {
-      console.warn('Categories fallback query:', e);
-      return [];
-    }
-  }) || [];
+  const categories =
+    useLiveQuery(async () => {
+      try {
+        return await db.categories.toArray();
+      } catch (e) {
+        console.warn('Categories fallback query:', e);
+        return [];
+      }
+    }) || [];
 
-  const debts = useLiveQuery(async () => {
-    try {
-      return await db.debts.toArray();
-    } catch (e) {
-      console.warn('Debts fallback query:', e);
-      return [];
-    }
-  }) || [];
+  const allDebts =
+    useLiveQuery(async () => {
+      try {
+        return await db.debts.toArray();
+      } catch (e) {
+        console.warn('Debts fallback query:', e);
+        return [];
+      }
+    }) || [];
+
+  const cashbooks =
+    useLiveQuery(async () => {
+      try {
+        return await db.cashbooks.toArray();
+      } catch (e) {
+        console.warn('Cashbooks fallback query:', e);
+        return [];
+      }
+    }) || [];
+
+  // Filter transactions by active Cashbook / Khata
+  const transactions = useMemo(() => {
+    if (currentBookId === 'all') return allTransactions;
+    return allTransactions.filter(
+      (t) => t.bookId === currentBookId || (!t.bookId && currentBookId === 'default_personal')
+    );
+  }, [allTransactions, currentBookId]);
+
+  // Filter debts by active Cashbook / Khata
+  const debts = useMemo(() => {
+    if (currentBookId === 'all') return allDebts;
+    return allDebts.filter(
+      (d) => d.bookId === currentBookId || (!d.bookId && currentBookId === 'default_personal')
+    );
+  }, [allDebts, currentBookId]);
 
   // Map category IDs for instant O(1) lookup
   const categoriesMap = useMemo(() => {
@@ -56,7 +94,7 @@ export const App: React.FC = () => {
     return map;
   }, [categories]);
 
-  // Overall Financial Calculations
+  // Overall Financial Calculations for active Khata
   const {
     todayIncome,
     todayExpense,
@@ -118,8 +156,8 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
-      {/* Header */}
-      <Navbar />
+      {/* Header with Khata Switcher */}
+      <Navbar cashbooks={cashbooks} />
 
       {/* Main Body */}
       <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-4 pb-24">
@@ -164,6 +202,13 @@ export const App: React.FC = () => {
 
       {/* Add / Edit Transaction Modal */}
       <TransactionModal categories={categories} />
+
+      {/* Khata / Cashbook Switcher Modal */}
+      <KhataSelectorModal
+        cashbooks={cashbooks}
+        isOpen={isKhataModalOpen}
+        onClose={() => setIsKhataModalOpen(false)}
+      />
 
       {/* Cloud Auth & Login Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

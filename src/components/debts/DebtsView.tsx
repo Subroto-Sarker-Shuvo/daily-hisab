@@ -17,9 +17,11 @@ import {
   Check,
   MessageSquare,
   Receipt,
+  Users,
 } from 'lucide-react';
 import { SmsReminderModal } from './SmsReminderModal';
 import { CashMemoModal } from '../common/CashMemoModal';
+import { PartyDirectoryView } from './PartyDirectoryView';
 
 interface DebtsViewProps {
   debts: DebtRecord[];
@@ -33,6 +35,7 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
     [currentBookId]
   );
 
+  const [subTab, setSubTab] = useState<'DEBTS' | 'DIRECTORY'>('DEBTS');
   const [activeDebtType, setActiveDebtType] = useState<DebtType>('RECEIVABLE');
   const [isAddDebtOpen, setIsAddDebtOpen] = useState<boolean>(false);
   const [settlingDebt, setSettlingDebt] = useState<DebtRecord | null>(null);
@@ -153,8 +156,49 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Top Split Balance Strip */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Sub-tab Navigation: Debts List vs Customer/Supplier Directory */}
+      <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 text-xs">
+        <button
+          onClick={() => setSubTab('DEBTS')}
+          className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
+            subTab === 'DEBTS'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <HandCoins size={15} />
+          <span>{lang === 'bn' ? 'বকেয়া তালিকা' : 'Active Debts'}</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('DIRECTORY')}
+          className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
+            subTab === 'DIRECTORY'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Users size={15} />
+          <span>{lang === 'bn' ? 'কাস্টমার ও মহাজন খাতা' : 'Customer Directory'}</span>
+        </button>
+      </div>
+
+      {subTab === 'DIRECTORY' ? (
+        <PartyDirectoryView
+          debts={debts}
+          activeKhata={activeKhata}
+          currencySymbol={currencySymbol}
+          lang={lang}
+          onSettleDebt={(debt) => {
+            setSettlingDebt(debt);
+            setSettleAmount((debt.totalAmount - debt.settledAmount).toString());
+          }}
+          onSendSms={(debt) => setReminderDebt(debt)}
+        />
+      ) : (
+        <>
+          {/* Top Split Balance Strip */}
+          <div className="grid grid-cols-2 gap-3">
         <div
           onClick={() => setActiveDebtType('RECEIVABLE')}
           className={`cursor-pointer rounded-2xl p-4 border transition-all ${
@@ -351,6 +395,8 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
           })}
         </div>
       )}
+    </>
+  )}
 
       {/* Add Debt Modal */}
       {isAddDebtOpen && (

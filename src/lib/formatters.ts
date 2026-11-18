@@ -25,10 +25,10 @@ export const formatAmount = (
 
 // Format date nicely
 export const formatDate = (
-  dateStr: string,
+  dateInput: string | number,
   lang: 'bn' | 'en' = 'bn'
 ): string => {
-  const date = new Date(dateStr);
+  const date = new Date(dateInput);
   const now = new Date();
   
   // Check if today

@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../../context/AppContext';
+import { db } from '../../db/db';
 import { Transaction, Category, TransactionType } from '../../types';
 import { formatAmount, formatDate } from '../../lib/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
-import { Search, Filter, Calendar, X, PlusCircle, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Search, Filter, Calendar, X, PlusCircle, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
+import { CashMemoModal } from '../common/CashMemoModal';
 
 interface TransactionListViewProps {
   transactions: Transaction[];
@@ -18,7 +21,13 @@ export const TransactionListView: React.FC<TransactionListViewProps> = ({
   categories,
   categoriesMap,
 }) => {
-  const { lang, currencySymbol, t, setEditingTransaction, setIsAddModalOpen } = useApp();
+  const { lang, currencySymbol, currentBookId, t, setEditingTransaction, setIsAddModalOpen } = useApp();
+
+  const [memoTx, setMemoTx] = useState<Transaction | null>(null);
+  const activeKhata = useLiveQuery(
+    () => (currentBookId !== 'all' ? db.cashbooks.get(currentBookId) : undefined),
+    [currentBookId]
+  );
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedType, setSelectedType] = useState<TransactionType | 'ALL'>('ALL');
@@ -244,20 +253,45 @@ export const TransactionListView: React.FC<TransactionListViewProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right flex-shrink-0 ml-2">
-                  <span
-                    className={`text-sm font-bold block ${
-                      isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                    }`}
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMemoTx(tx);
+                    }}
+                    title={lang === 'bn' ? 'ক্যাশ মেমো / ভাউচার প্রিন্ট' : 'Print Receipt'}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
                   >
-                    {isIncome ? '+' : '-'}{formatAmount(tx.amount, currencySymbol, lang)}
-                  </span>
+                    <Receipt size={16} />
+                  </button>
+
+                  <div className="text-right">
+                    <span
+                      className={`text-sm font-bold block ${
+                        isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {isIncome ? '+' : '-'}{formatAmount(tx.amount, currencySymbol, lang)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Thermal Cash Memo / Voucher Modal */}
+      <CashMemoModal
+        isOpen={!!memoTx}
+        onClose={() => setMemoTx(null)}
+        transaction={memoTx}
+        category={memoTx ? categoriesMap[memoTx.categoryId] : undefined}
+        activeKhata={activeKhata}
+        currencySymbol={currencySymbol}
+        lang={lang}
+      />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../db/db';
 import { DebtRecord, DebtType, DebtSettlement, PaymentMethod } from '../../types';
@@ -14,7 +15,11 @@ import {
   Calendar,
   AlertCircle,
   Check,
+  MessageSquare,
+  Receipt,
 } from 'lucide-react';
+import { SmsReminderModal } from './SmsReminderModal';
+import { CashMemoModal } from '../common/CashMemoModal';
 
 interface DebtsViewProps {
   debts: DebtRecord[];
@@ -23,9 +28,16 @@ interface DebtsViewProps {
 export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
   const { lang, currencySymbol, currentBookId, t } = useApp();
 
+  const activeKhata = useLiveQuery(
+    () => (currentBookId !== 'all' ? db.cashbooks.get(currentBookId) : undefined),
+    [currentBookId]
+  );
+
   const [activeDebtType, setActiveDebtType] = useState<DebtType>('RECEIVABLE');
   const [isAddDebtOpen, setIsAddDebtOpen] = useState<boolean>(false);
   const [settlingDebt, setSettlingDebt] = useState<DebtRecord | null>(null);
+  const [reminderDebt, setReminderDebt] = useState<DebtRecord | null>(null);
+  const [memoDebt, setMemoDebt] = useState<DebtRecord | null>(null);
 
   // Add Debt Form State
   const [personName, setPersonName] = useState<string>('');
@@ -290,27 +302,49 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
                 )}
 
                 {/* Action Buttons */}
-                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <button
-                    onClick={() => handleDeleteDebt(debt.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-
-                  {!isSettled && (
+                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1 flex-wrap">
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => {
-                        setSettlingDebt(debt);
-                        setSettleAmount(remaining.toString());
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+                      onClick={() => handleDeleteDebt(debt.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                      title="Delete"
                     >
-                      <CheckCircle2 size={14} />
-                      {t.debts.settle}
+                      <Trash2 size={16} />
                     </button>
-                  )}
+
+                    <button
+                      onClick={() => setMemoDebt(debt)}
+                      className="p-1.5 text-slate-400 hover:text-teal-600 rounded-lg transition-colors"
+                      title={lang === 'bn' ? 'ক্যাশ মেমো প্রিন্ট' : 'Print Cash Memo'}
+                    >
+                      <Receipt size={16} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {debt.type === 'RECEIVABLE' && !isSettled && (
+                      <button
+                        onClick={() => setReminderDebt(debt)}
+                        className="px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 transition-all flex items-center gap-1"
+                      >
+                        <MessageSquare size={13} />
+                        {lang === 'bn' ? 'রিমাইন্ডার' : 'SMS'}
+                      </button>
+                    )}
+
+                    {!isSettled && (
+                      <button
+                        onClick={() => {
+                          setSettlingDebt(debt);
+                          setSettleAmount(remaining.toString());
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <CheckCircle2 size={14} />
+                        {t.debts.settle}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -498,6 +532,26 @@ export const DebtsView: React.FC<DebtsViewProps> = ({ debts }) => {
           </div>
         </div>
       )}
+
+      {/* SMS & WhatsApp Debt Reminder Modal */}
+      <SmsReminderModal
+        isOpen={!!reminderDebt}
+        onClose={() => setReminderDebt(null)}
+        debt={reminderDebt}
+        activeKhata={activeKhata}
+        currencySymbol={currencySymbol}
+        lang={lang}
+      />
+
+      {/* Cash Memo / Receipt Print Modal */}
+      <CashMemoModal
+        isOpen={!!memoDebt}
+        onClose={() => setMemoDebt(null)}
+        debt={memoDebt}
+        activeKhata={activeKhata}
+        currencySymbol={currencySymbol}
+        lang={lang}
+      />
     </div>
   );
 };

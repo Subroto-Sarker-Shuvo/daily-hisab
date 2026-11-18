@@ -1,10 +1,18 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { LayoutDashboard, ReceiptText, Plus, HandCoins, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, Plus, HandCoins, BarChart3, Mic } from 'lucide-react';
 import { ActiveTab } from '../../types';
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab, setIsAddModalOpen, setEditingTransaction, t } = useApp();
+  const {
+    activeTab,
+    setActiveTab,
+    setIsAddModalOpen,
+    setIsVoiceModalOpen,
+    setEditingTransaction,
+    lang,
+    t,
+  } = useApp();
 
   const handleOpenAdd = () => {
     setEditingTransaction(null);
@@ -60,14 +68,23 @@ export const BottomNav: React.FC = () => {
           })}
         </div>
 
-        {/* Center Raised FAB Button */}
-        <div className="relative -top-5 px-2">
+        {/* Center Raised Action Group */}
+        <div className="relative -top-5 flex items-center gap-1.5 px-1">
+          <button
+            onClick={() => setIsVoiceModalOpen(true)}
+            aria-label="Voice Entry"
+            title={lang === 'bn' ? 'ভয়েস দিয়ে হিসাব' : 'Voice Entry'}
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+          >
+            <Mic size={18} />
+          </button>
+
           <button
             onClick={handleOpenAdd}
             aria-label="Add Transaction"
-            className="w-13 h-13 p-3.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+            className="w-12 h-12 p-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
           >
-            <Plus size={26} strokeWidth={2.5} />
+            <Plus size={24} strokeWidth={2.5} />
           </button>
         </div>
 

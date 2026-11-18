@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ChevronDown,
   BookOpen,
+  Mic,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -31,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cashbooks }) => {
     syncStatus,
     triggerSync,
     setIsAuthModalOpen,
+    setIsVoiceModalOpen,
     t,
   } = useApp();
 
@@ -85,6 +87,18 @@ export const Navbar: React.FC<NavbarProps> = ({ cashbooks }) => {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* AI Voice Entry Button */}
+          <button
+            onClick={() => setIsVoiceModalOpen(true)}
+            title={lang === 'bn' ? 'বাংলায় মুখে বলে হিসাব যোগ করুন' : 'Voice Expense Entry'}
+            className="px-2.5 py-1 rounded-xl text-purple-700 bg-purple-50 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-all flex items-center gap-1 font-bold text-xs shadow-sm hover:scale-105 active:scale-95"
+          >
+            <Mic size={14} className="text-purple-600 dark:text-purple-400 animate-pulse" />
+            <span className="text-[11px] font-bold">
+              {lang === 'bn' ? 'ভয়েস' : 'Voice'}
+            </span>
+          </button>
+
           {/* Cloud Sync Status Button */}
           <button
             onClick={handleCloudClick}

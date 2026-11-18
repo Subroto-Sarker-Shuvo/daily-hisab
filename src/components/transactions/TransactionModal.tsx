@@ -4,7 +4,7 @@ import { db } from '../../db/db';
 import { Transaction, TransactionType, PaymentMethod, Category } from '../../types';
 import { compressImage } from '../../lib/imageCompressor';
 import { CategoryIcon } from '../common/CategoryIcon';
-import { X, Trash2, Camera, Calendar, FileText, Check, Plus } from 'lucide-react';
+import { X, Trash2, Camera, Calendar, FileText, Check, Plus, Mic } from 'lucide-react';
 import { toBengaliDigits } from '../../lib/formatters';
 
 interface TransactionModalProps {
@@ -15,6 +15,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
   const {
     isAddModalOpen,
     setIsAddModalOpen,
+    isVoiceModalOpen,
+    setIsVoiceModalOpen,
     editingTransaction,
     setEditingTransaction,
     currencySymbol,
@@ -139,9 +141,24 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
       <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="font-bold text-base text-slate-800 dark:text-slate-100">
-            {editingTransaction ? t.transaction.editTitle : t.transaction.addTitle}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-slate-800 dark:text-slate-100">
+              {editingTransaction ? t.transaction.editTitle : t.transaction.addTitle}
+            </h2>
+            {!editingTransaction && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setIsVoiceModalOpen(true);
+                }}
+                className="px-2 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 text-[11px] font-bold border border-purple-200 dark:border-purple-800 flex items-center gap-1 hover:bg-purple-100 transition-colors shadow-sm"
+              >
+                <Mic size={12} />
+                {lang === 'bn' ? 'ভয়েস মোড' : 'Voice'}
+              </button>
+            )}
+          </div>
           <button
             onClick={() => {
               setIsAddModalOpen(false);
@@ -287,10 +304,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ categories }
 
           {/* Note / Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-              <FileText size={14} />
-              {t.transaction.note}
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <FileText size={14} />
+                {t.transaction.note}
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setIsVoiceModalOpen(true);
+                }}
+                className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 flex items-center gap-1"
+              >
+                <Mic size={12} />
+                {lang === 'bn' ? 'ভয়েস দিয়ে লিখুন' : 'Use Voice'}
+              </button>
+            </div>
             <input
               type="text"
               placeholder={t.transaction.notePlaceholder}

@@ -48,6 +48,8 @@ interface AppContextType {
   // Modal states
   isAddModalOpen: boolean;
   setIsAddModalOpen: (open: boolean) => void;
+  isVoiceModalOpen: boolean;
+  setIsVoiceModalOpen: (open: boolean) => void;
   editingTransaction: Transaction | null;
   setEditingTransaction: (tx: Transaction | null) => void;
   reloadSettings: () => Promise<void>;
@@ -80,6 +82,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const reloadSettings = async () => {
@@ -327,6 +330,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         isAddModalOpen,
         setIsAddModalOpen,
+        isVoiceModalOpen,
+        setIsVoiceModalOpen,
         editingTransaction,
         setEditingTransaction,
         reloadSettings,

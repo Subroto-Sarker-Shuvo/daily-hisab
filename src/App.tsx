@@ -13,6 +13,7 @@ import { DebtsView } from './components/debts/DebtsView';
 import { ReportsView } from './components/reports/ReportsView';
 import { SettingsView } from './components/settings/SettingsView';
 import { TransactionModal } from './components/transactions/TransactionModal';
+import { VoiceEntryModal } from './components/voice/VoiceEntryModal';
 import { PinLockScreen } from './components/auth/PinLockScreen';
 import { AuthModal } from './components/auth/AuthModal';
 import { KhataSelectorModal } from './components/cashbooks/KhataSelectorModal';
@@ -26,6 +27,8 @@ export const App: React.FC = () => {
     setIsKhataModalOpen,
     isAuthModalOpen,
     setIsAuthModalOpen,
+    isVoiceModalOpen,
+    setIsVoiceModalOpen,
   } = useApp();
 
   // Reactive Live Subscriptions from Dexie IndexedDB with safe fallbacks
@@ -212,6 +215,13 @@ export const App: React.FC = () => {
 
       {/* Cloud Auth & Login Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* AI Voice Expense Entry Modal */}
+      <VoiceEntryModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        categories={categories}
+      />
 
       {/* Sticky Bottom Navigation Bar */}
       <BottomNav />

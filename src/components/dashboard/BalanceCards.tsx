@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatAmount } from '../../lib/formatters';
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, HandCoins } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, HandCoins, Mic, Sparkles } from 'lucide-react';
 
 interface BalanceCardsProps {
   totalIncome: number;
@@ -18,10 +18,33 @@ export const BalanceCards: React.FC<BalanceCardsProps> = ({
   totalPabo,
   totalDibo,
 }) => {
-  const { currencySymbol, lang, t, setActiveTab } = useApp();
+  const { currencySymbol, lang, t, setActiveTab, setIsVoiceModalOpen } = useApp();
 
   return (
     <div className="space-y-3.5">
+      {/* AI Voice Entry Quick Banner */}
+      <div
+        onClick={() => setIsVoiceModalOpen(true)}
+        className="cursor-pointer rounded-2xl p-3 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-teal-500/10 border border-purple-200/80 dark:border-purple-800/60 flex items-center justify-between hover:bg-purple-100/30 transition-all group"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+            <Mic size={16} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
+              <span>{lang === 'bn' ? 'বাংলা ভয়েস ইনপুট' : 'Bengali Voice Entry'}</span>
+              <Sparkles size={12} className="text-purple-500" />
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {lang === 'bn' ? '"বাজারে খরচ ৫০০ টাকা" বললেই এন্ট্রি' : 'Speak in Bengali to add entry'}
+            </p>
+          </div>
+        </div>
+        <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 shadow-xs">
+          {lang === 'bn' ? 'শুরু করুন' : 'Speak'}
+        </span>
+      </div>
       {/* Primary Net Balance Card */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 p-5 text-white shadow-lg shadow-emerald-700/20">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
